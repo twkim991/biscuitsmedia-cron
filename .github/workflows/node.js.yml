@@ -21,5 +21,11 @@ jobs:
       - name: 패키지 설치
         run: npm install
 
+      - name: 쿠키 파일 복원
+        run: |
+          echo "$COOKIE_JSON" | base64 -d > cookies.json
+        env:
+          COOKIE_JSON: ${{ secrets.COOKIE_JSON }}
+
       - name: 스크립트 실행
         run: node crawling.js
