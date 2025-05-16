@@ -801,9 +801,9 @@ async function crawling(platform) {
 
 	console.log(data)
 
-	for(row of data) {
-		await saveToDB(row[0], row[1], platform, row[2], row[3], row[4], salesDate);
-	}
+	// for(row of data) {
+	// 	await saveToDB(row[0], row[1], platform, row[2], row[3], row[4], salesDate);
+	// }
 }
 
 // const run = async () => {
