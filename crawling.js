@@ -21,7 +21,10 @@ chromeOptions.setUserPreferences({
 	'directory_upgrade': true,
 	'safebrowsing.enabled': true                 // 크롬의 안전 다운로드 차단 해제
 });
-chromeOptions.addArguments("--headless", "--disable-gpu", "--window-size=1920,1080","lang=ko_KR")
+// chromeOptions.addArguments("--headless", "--disable-gpu", "--window-size=1920,1080","lang=ko_KR")
+chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
+chromeOptions.addArguments('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36');
+chromeOptions.addArguments('--no-sandbox','--disable-dev-shm-usage','--disable-infobars','--disable-extensions','--disable-blink-features=AutomationControlled','--disable-browser-side-navigation','--disable-features=site-per-process','--lang=ko-KR',);
 
 // 연결 정보 설정
 const dbConfig = {
@@ -49,6 +52,22 @@ function getToday(format = 'file') {
 	const mm = String(d.getMonth() + 1).padStart(2, '0');
 	const dd = String(d.getDate()).padStart(2, '0');
 	return format === 'file' ? `${yyyy}-${mm}-${dd}` : `${yyyy}${mm}${dd}`;
+}
+
+// 로그인 완료된 상태에서 호출
+async function saveCookies(driver) {
+	const cookies = await driver.manage().getCookies();
+	fs.writeFileSync('cookies.json', JSON.stringify(cookies, null, 2));
+	console.log('✅ 쿠키 저장 완료!');
+}
+
+async function loadCookies(driver, url) {
+	const cookies = JSON.parse(fs.readFileSync('cookies.json'));
+	await driver.get(url); // 쿠키 추가 전 같은 도메인 열기
+	for (const cookie of cookies) {
+		await driver.manage().addCookie(cookie);
+	}
+	console.log('✅ 쿠키 적용 완료!');
 }
 
 // // 시리즈는 contentsSelling_2025-04-04
@@ -408,23 +427,29 @@ async function downloadseries() {
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();
-		await driver.get('https://friend.navercorp.com/login/loginForm.sec');
-		await sleep(1000);
+		// await driver.get('https://friend.navercorp.com/login/loginForm.sec');
+		// await sleep(1000);
 
-		// 로그인 폼 입력
-		await driver.findElement(By.id('user_id')).sendKeys('bis2203')
-		await sleep(300)
-		await driver.findElement(By.id('user_pw')).sendKeys('apfhd@486')
-		await sleep(300)
-		await driver.findElement(By.id('btn-login')).click()
-		await sleep(2000)
+		// await driver.executeScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})");
 
-		// alert 처리
-		await handleAlert(driver);
+		// // 로그인 폼 입력
+		// await driver.findElement(By.id('user_id')).sendKeys('bis2203')
+		// await sleep(300)
+		// await driver.findElement(By.id('user_pw')).sendKeys('apfhd@486')
+		// await sleep(300)
+		// await driver.findElement(By.id('btn-login')).click()
+		// await sleep(2000)
 
-		await sleep(2000);
-		const currentUrl = await driver.getCurrentUrl();
-		console.log('📍 현재 URL:', currentUrl);
+		// // alert 처리
+		// await handleAlert(driver);
+
+		// await sleep(2000);
+		// const currentUrl = await driver.getCurrentUrl();
+		// console.log('📍 현재 URL:', currentUrl);
+
+		// saveCookies(driver)
+
+		await loadCookies(driver, 'https://friend.navercorp.com');
 
 		// 매출 페이지로 이동
 		await driver.get('https://friend.navercorp.com/main/welcome');
