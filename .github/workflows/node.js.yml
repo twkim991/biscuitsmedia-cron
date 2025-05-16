@@ -2,7 +2,7 @@ name: Daily Node Script
 
 on:
   schedule:
-    - cron: '0 23 * * *'  # 매일 한국시간 자정 실행 (UTC 기준 오후 3시)
+    - cron: '0 15 * * *'  # 매일 한국시간 자정 실행 (UTC 기준 15시)
   workflow_dispatch:       # 수동 실행도 가능
 
 jobs:
@@ -17,6 +17,9 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
+
+      - name: 패키지 설치
+        run: npm install
 
       - name: 스크립트 실행
         run: node crawling.js
