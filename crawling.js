@@ -419,8 +419,12 @@ async function downloadseries() {
 		await driver.findElement(By.id('btn-login')).click()
 		await sleep(2000)
 
-		// alert로 전환
+		// alert 처리
 		await handleAlert(driver);
+
+		await sleep(2000);
+		const currentUrl = await driver.getCurrentUrl();
+		console.log('📍 현재 URL:', currentUrl);
 
 		// 매출 페이지로 이동
 		await driver.get('https://friend.navercorp.com/main/welcome');
