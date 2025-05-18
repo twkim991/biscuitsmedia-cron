@@ -144,7 +144,7 @@ function parseExcel(Platform, yesterday) {
 				content_no = row[1];
 				name = row[4];
 				totalSalesCount = row[29] + row[35] + row[41] + row[47] + row[53] + row[59] + row[65];
-				totalRevenue = row[row.length-1]
+				totalRevenue = row[row.length-1] - row[row.length-2];
 				// console.log(row)
 				data.push([ content_no, name, totalSalesCount, totalRevenue, totalRevenue*0.7 ])
 			});
