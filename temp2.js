@@ -1,4 +1,5 @@
 
+const { Builder, By, Key, until } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 const xlsx = require('xlsx');
 const mysql = require('mysql2/promise');
@@ -10,6 +11,19 @@ const iconv = require('iconv-lite');
 
 // ✅ 설정값들
 const DOWNLOAD_DIR = path.resolve(__dirname, 'downloads');
+
+const chromeOptions = new chrome.Options();
+chromeOptions.setUserPreferences({
+	'download.default_directory': DOWNLOAD_DIR,  // ✅ 다운로드 경로 지정
+	'download.prompt_for_download': false,       // 다운로드 시 팝업 없이 자동 저장
+	'directory_upgrade': true,
+	'safebrowsing.enabled': true                 // 크롬의 안전 다운로드 차단 해제
+});
+chromeOptions.addArguments("--headless", "--disable-gpu", "--window-size=1920,1080","lang=ko_KR")
+chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
+chromeOptions.addArguments('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36');
+chromeOptions.addArguments('--no-sandbox','--disable-dev-shm-usage','--disable-infobars','--disable-extensions','--disable-blink-features=AutomationControlled','--disable-browser-side-navigation','--disable-features=site-per-process','--lang=ko-KR',);
+
 
 // 연결 정보 설정
 const dbConfig = {
@@ -302,6 +316,79 @@ function parseExcel(Platform) {
 			console.log('파일 파싱 완료');
 			fs.unlinkSync(filePath);
 			resolve(data);
+		}else if(Platform == 'joara') {
+			const driver = await new Builder()
+				.forBrowser('chrome')
+				.setChromeOptions(chromeOptions)
+				.build();
+			
+			try {
+				console.log("목록 수집중...")
+		
+				// 로그인 시도
+				await driver.manage().deleteAllCookies();
+				await driver.get('https://cp.joara.com/');
+				await sleep(1000);
+		
+				// 로그인 폼 입력 https://cp.joara.com/literature/account/account_list.html
+				await driver.findElement(By.css('input[name="member_id"]')).sendKeys('bis2203')
+				await sleep(300)
+				await driver.findElement(By.css('input[name="passwd"]')).sendKeys('#bis2203')
+				await sleep(300)
+				await driver.findElement(By.css('input[src="images/btn_login.gif"]')).click();
+				await sleep(2000)
+		
+				// 매출 페이지로 이동
+				await driver.get('https://cp.joara.com/literature/account/account_list.html');
+				await sleep(2000)
+		
+				const rows = await driver.findElements(By.css('div.table_wrap tr'));
+				const results = [];
+		
+				for (const row of rows) {
+					const tds = await row.findElements(By.css('td'));
+					if (tds.length === 0) continue; // 헤더 또는 빈 tr 무시
+		
+					const span = await tds[0].findElement(By.css('span.list1'));
+					const contentNo = await span.getAttribute('name');
+					const title = await span.getText();
+		
+					const values = [contentNo, title];
+					for (let i = 1; i < 3; i++) {
+						values.push(await tds[i].getText());
+					}
+		
+					// ✅ 팝업 열기 (클릭)
+					await driver.executeScript("arguments[0].scrollIntoView(true);", span);
+					await span.click();
+					await driver.sleep(500); // 팝업 로딩 대기
+		
+					// ✅ 팝업 내 행 수집
+					const popupRows = await driver.findElements(By.css('.pop tbody#work_list tr'));
+					for (const popupRow of popupRows) {
+						const popupTds = await popupRow.findElements(By.css('td'));
+						const date = await popupTds[0].getText();
+						const sales = await popupTds[1].getText();
+						const cancels = await popupTds[2].getText();
+		
+						results.push([values[0], values[2], Number(sales)-Number(cancels), (Number(sales)-Number(cancels))*Number(values[3]), (Number(sales)-Number(cancels))*Number(values[3])*0.6, date])
+					}
+					
+					// ✅ 팝업 닫기 (버튼 클릭)
+					const closeBtn = await driver.findElement(By.css('.pop a.btn_style'));
+					await closeBtn.click();
+					await driver.sleep(300); // 팝업 닫힘 대기
+				}
+				// console.log(results)
+				await sleep(2000);
+		
+				resolve(results);
+			} catch (e) {
+				console.log(e);
+			} finally {
+				console.log('종료')
+				await driver.quit();
+			}
 		}
 	});
 }
@@ -341,7 +428,7 @@ const run = async () => {
 	// await crawling("kakao");
 	// await crawling("ridi");
 	// await crawling("kyobo");
-	// await crawling("aladin");
+	await crawling("aladin");
 	// await crawling("yes24");
 	// await crawling("joara");
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');

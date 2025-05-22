@@ -368,10 +368,10 @@ function parseExcel(Platform, yesterday) {
 			for (const [content_no, name, sales, revenue] of data) {
 				const key = `${content_no}::`;
 				if (!groupedMap.has(key)) {
-					groupedMap.set(key, { content_no, name, totalSalesCount: 1, totalRevenue: revenue });
+					groupedMap.set(key, {content_no,name,totalSalesCount: revenue >= 0 ? 1 : -1,totalRevenue: revenue});
 				} else {
 					const entry = groupedMap.get(key);
-					entry.totalSalesCount += 1;
+					entry.totalSalesCount += revenue >= 0 ? 1 : -1;
 					entry.totalRevenue += revenue;
 				}
 			}
@@ -707,14 +707,62 @@ async function downloadjoara() {
 		await driver.get('https://cp.joara.com/');
 		await sleep(1000);
 
-		// 로그인 폼 입력
+		// 로그인 폼 입력 https://cp.joara.com/literature/account/account_list.html
 		await driver.findElement(By.css('input[name="member_id"]')).sendKeys('bis2203')
 		await sleep(300)
 		await driver.findElement(By.css('input[name="passwd"]')).sendKeys('#bis2203')
 		await sleep(300)
 		await driver.findElement(By.css('input[src="images/btn_login.gif"]')).click();
-		await sleep(20000000)
+		await sleep(2000)
 
+		// 매출 페이지로 이동
+		await driver.get('https://cp.joara.com/literature/account/account_list.html');
+		await sleep(2000)
+
+		const rows = await driver.findElements(By.css('div.table_wrap tr'));
+		const results = [];
+
+		for (const row of rows) {
+			const tds = await row.findElements(By.css('td'));
+			if (tds.length === 0) continue; // 헤더 또는 빈 tr 무시
+
+			const span = await tds[0].findElement(By.css('span.list1'));
+			const contentNo = await span.getAttribute('name');
+			const title = await span.getText();
+
+			const values = [contentNo, title];
+			for (let i = 1; i < 3; i++) {
+				values.push(await tds[i].getText());
+			}
+
+			// ✅ 팝업 열기 (클릭)
+			await driver.executeScript("arguments[0].scrollIntoView(true);", span);
+			await span.click();
+			await driver.sleep(500); // 팝업 로딩 대기
+
+			// ✅ 팝업 내 행 수집
+			const popupRows = await driver.findElements(By.css('.pop tbody#work_list tr'));
+			for (const popupRow of popupRows) {
+				const popupTds = await popupRow.findElements(By.css('td'));
+				const date = await popupTds[0].getText();
+				if( date != getYesterday('file')) {
+					continue;
+				}
+				const sales = await popupTds[1].getText();
+				const cancels = await popupTds[2].getText();
+
+				results.push([values[0], values[2], Number(sales)-Number(cancels), (Number(sales)-Number(cancels))*Number(values[3]), (Number(sales)-Number(cancels))*Number(values[3])*0.6])
+			}
+			
+			// ✅ 팝업 닫기 (버튼 클릭)
+			const closeBtn = await driver.findElement(By.css('.pop a.btn_style'));
+			await closeBtn.click();
+			await driver.sleep(300); // 팝업 닫힘 대기
+		}
+		// console.log(results)
+		await sleep(2000);
+
+		return results
     } catch (e) {
         console.log(e);
 	} finally {
@@ -793,18 +841,21 @@ async function downloadaladin() {
 
 async function crawling(platform) {
 	const salesDate = getYesterday('file');
+	let data = [];
 	if(platform=="series") {await downloadseries();}
 	else if(platform=="kakao") {await downloadkakao();}
 	else if(platform=="ridi") {await downloadridi();}
 	else if(platform=="yes24") {await downloadyes24();}
 	else if(platform=="kyobo") {await downloadkyobo();}
 	else if(platform=="aladin") {await downloadaladin();}
-	else if(platform=="joara") {await downloadjoara();}
-	else if(platform=="piuri") {await downloadjoara();};
+	else if(platform=="joara") {data = await downloadjoara();}
+	// else if(platform=="piuri") {await downloadpiuri();};
 
 	await sleep(1000);
-	// ▶ 파싱
-	const data = await parseExcel(platform, salesDate);
+	if (platform !== "joara") {
+		// ▶ 파싱
+		data = await parseExcel(platform, salesDate);
+	}
 
 	console.log(data)
 
@@ -823,10 +874,10 @@ async function crawling(platform) {
 // }
 
 const run = async () => {
-	await crawling("series");
-	await crawling("kakao");
-	await crawling("ridi");
-	await crawling("kyobo");
+	// await crawling("series");
+	// await crawling("kakao");
+	// await crawling("ridi");
+	// await crawling("kyobo");
 	await crawling("aladin");
 	// await crawling("yes24");
 	// await crawling("joara");
