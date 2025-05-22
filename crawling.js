@@ -21,7 +21,7 @@ chromeOptions.setUserPreferences({
 	'directory_upgrade': true,
 	'safebrowsing.enabled': true                 // 크롬의 안전 다운로드 차단 해제
 });
-// chromeOptions.addArguments("--headless", "--disable-gpu", "--window-size=1920,1080","lang=ko_KR")
+chromeOptions.addArguments("--headless", "--disable-gpu", "--window-size=1920,1080","lang=ko_KR")
 chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
 chromeOptions.addArguments('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36');
 chromeOptions.addArguments('--no-sandbox','--disable-dev-shm-usage','--disable-infobars','--disable-extensions','--disable-blink-features=AutomationControlled','--disable-browser-side-navigation','--disable-features=site-per-process','--lang=ko-KR',);
@@ -955,12 +955,12 @@ async function crawling(platform) {
 	if(platform=="series") {await downloadseries();}
 	else if(platform=="kakao") {await downloadkakao();}
 	else if(platform=="ridi") {await downloadridi();}
-	else if(platform=="yes24") {await downloadyes24();}
 	else if(platform=="kyobo") {await downloadkyobo();}
 	else if(platform=="aladin") {await downloadaladin();}
 	else if(platform=="joara") {data = await downloadjoara();}
 	else if(platform=="blice") {await downloadblice();}
 	// else if(platform=="piuri") {await downloadpiuri();};
+	// else if(platform=="yes24") {await downloadyes24();}
 
 	await sleep(1000);
 	if (platform !== "joara") {
@@ -990,7 +990,6 @@ const run = async () => {
 	await crawling("ridi");
 	await crawling("kyobo");
 	await crawling("aladin");
-	await crawling("yes24");
 	await crawling("joara");
 	await crawling("blice");
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');
