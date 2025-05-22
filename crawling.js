@@ -21,7 +21,7 @@ chromeOptions.setUserPreferences({
 	'directory_upgrade': true,
 	'safebrowsing.enabled': true                 // 크롬의 안전 다운로드 차단 해제
 });
-chromeOptions.addArguments("--headless", "--disable-gpu", "--window-size=1920,1080","lang=ko_KR")
+// chromeOptions.addArguments("--headless", "--disable-gpu", "--window-size=1920,1080","lang=ko_KR")
 chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
 chromeOptions.addArguments('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36');
 chromeOptions.addArguments('--no-sandbox','--disable-dev-shm-usage','--disable-infobars','--disable-extensions','--disable-blink-features=AutomationControlled','--disable-browser-side-navigation','--disable-features=site-per-process','--lang=ko-KR',);
@@ -381,6 +381,43 @@ function parseExcel(Platform, yesterday) {
 			console.log('파일 파싱 완료');
 			fs.unlinkSync(filePath);
 			resolve(finalData);
+		}else if(Platform == 'blice') {
+			// 파일이 제대로 다운로드 되어있는지 확인
+			const expectedFileName = `판매현황${getToday('date')}`;
+			const matchedFile = fs.readdirSync(DOWNLOAD_DIR).find(name => name.startsWith(expectedFileName));
+			if (!matchedFile) {
+				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
+				resolve([]);
+			}
+
+			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
+			const filePath = renameDownloadedFile(matchedFile, Platform, yesterday);
+			console.log(filePath)
+
+			const workbook = xlsx.readFile(filePath);
+			const sheetName = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheetName];
+			const rows = xlsx.utils.sheet_to_json(sheet, { defval: '', header: 1 });
+			const data = [];
+
+			rows.forEach(function(row,idx,arr){
+				// 결과를 저장할 배열과 변수
+				// console.log(row)
+				let content_no = 0;
+				let name = '';
+				let totalSalesCount = 0;
+				let totalRevenue = 0;
+				if(idx < 2 ) {return;}
+				content_no = row[5];
+				name = row[7];
+				totalSalesCount = row[8]/100;
+				totalRevenue = row[8];
+				data.push([ content_no, name, totalSalesCount, totalRevenue, totalRevenue*0.7 ])
+			})
+			console.log('파일 파싱 완료');
+
+			fs.unlinkSync(filePath);
+			resolve(data);
 		}
 	});
 }
@@ -839,6 +876,79 @@ async function downloadaladin() {
 	}
 }
 
+async function downloadblice() {
+	const driver = await new Builder()
+		.forBrowser('chrome')
+		.setChromeOptions(chromeOptions)
+		.build();
+
+	try {
+		console.log("목록 수집중...")
+
+		// 로그인 시도
+		await driver.manage().deleteAllCookies();
+		await driver.get('https://www.blice.co.kr/web/homescreen/main.kt?service=WEBNOVEL&genre=romance');
+		await sleep(1000);
+
+		// 팝업창 닫기
+		const handles = await driver.getAllWindowHandles();
+
+		if (handles.length > 1) {
+			const mainHandle = handles[0];
+			const popupHandle = handles[1];
+
+			// 팝업으로 전환
+			await driver.switchTo().window(popupHandle);
+			await driver.close(); // 팝업 닫기
+
+			// 다시 원래 창으로 복귀
+			await driver.switchTo().window(mainHandle);
+		}
+
+		// 로그인 폼 입력
+		await driver.findElement(By.css('.btn-login')).click()
+		await sleep(2000)
+		await driver.findElement(By.id('userid')).sendKeys('dmlaldjqtek9@naver.com')
+		await sleep(300)
+		await driver.findElement(By.id('passwd')).sendKeys('apfhd@4862')
+		await sleep(300)
+		await driver.findElement(By.id('ktnovelLogin')).click()
+		await sleep(5000)
+
+		// 매출 페이지로 이동
+		await driver.get('https://www.blice.co.kr/web/my/sales_info.kt');
+		await sleep(300)
+		const label = await driver.wait(until.elementLocated(By.css('label[for="rdoDate2"]')),5000);
+		await label.click();
+		await sleep(300);
+		
+		// 날짜 입력
+		const date = getYesterday('file');
+		await driver.executeScript(`document.getElementById('calculateFirstDate').value = arguments[0];`, date);
+		await sleep(300)
+		await driver.executeScript(`document.querySelector('input[name="end_dt"]').value = arguments[0];`, date);
+		await sleep(300)
+		console.log('✅ 날짜 입력 완료');
+
+		// 조회 버튼 클릭
+		const searchBtn = await driver.wait(until.elementLocated(By.css('.searchBtn')), 10000);
+		await driver.executeScript("arguments[0].click();", searchBtn);
+		console.log('🔍 조회 버튼 클릭');
+		await sleep(2000);
+
+		// 엑셀 다운로드 버튼 클릭
+		const excelBtn = await driver.findElement(By.css('button#excelDownBtn'));
+		await excelBtn.click();
+		console.log('📥 엑셀 다운로드 클릭');
+		await sleep(3000);
+	} catch (e) {
+        console.log(e);
+	} finally {
+        console.log('종료')
+		await driver.quit();
+	}
+}
+
 async function crawling(platform) {
 	const salesDate = getYesterday('file');
 	let data = [];
@@ -849,6 +959,7 @@ async function crawling(platform) {
 	else if(platform=="kyobo") {await downloadkyobo();}
 	else if(platform=="aladin") {await downloadaladin();}
 	else if(platform=="joara") {data = await downloadjoara();}
+	else if(platform=="blice") {await downloadblice();}
 	// else if(platform=="piuri") {await downloadpiuri();};
 
 	await sleep(1000);
@@ -874,13 +985,14 @@ async function crawling(platform) {
 // }
 
 const run = async () => {
-	// await crawling("series");
-	// await crawling("kakao");
-	// await crawling("ridi");
-	// await crawling("kyobo");
+	await crawling("series");
+	await crawling("kakao");
+	await crawling("ridi");
+	await crawling("kyobo");
 	await crawling("aladin");
-	// await crawling("yes24");
-	// await crawling("joara");
+	await crawling("yes24");
+	await crawling("joara");
+	await crawling("blice");
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');
   	process.exit(0);  // 👈 Node.js 프로세스 종료
 }
