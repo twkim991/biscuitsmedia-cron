@@ -418,6 +418,59 @@ function parseExcel(Platform, yesterday) {
 
 			fs.unlinkSync(filePath);
 			resolve(data);
+		}else if(Platform == 'yes24') {
+			// 파일이 제대로 다운로드 되어있는지 확인
+			const expectedFileName = `B2C_List`;
+			const matchedFile = fs.readdirSync(DOWNLOAD_DIR).find(name => name.startsWith(expectedFileName));
+			if (!matchedFile) {
+				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
+				resolve([]);
+			}
+
+			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
+			const filePath = renameDownloadedFile(matchedFile, Platform, yesterday);
+			console.log(filePath)
+
+			const workbook = xlsx.readFile(filePath);
+			const sheetName = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheetName];
+			const rows = xlsx.utils.sheet_to_json(sheet, { defval: '', header: 1 });
+			const data = [];
+
+			rows.forEach(function(row,idx,arr){
+				// 결과를 저장할 배열과 변수
+				// console.log(row)
+				let content_no = 0;
+				let name = '';
+				let totalSalesCount = 0;
+				let totalRevenue = 0;
+				if(idx == 0 ) {return;}
+				content_no = row[14];
+				name = row[12];
+				if(row[19] == '') { totalSalesCount = 1}
+				else {totalSalesCount = -1}
+				totalRevenue = row[3];
+				data.push([ content_no, name, totalSalesCount, totalRevenue, totalRevenue*0.7 ])
+			})
+
+			// 판매부수가 안나오므로 다 더해서 판매부수 계산하는 과정 추가
+			const groupedMap = new Map();
+			for (const [content_no, name, sales, revenue] of data) {
+				const key = `${content_no}::`;
+				if (!groupedMap.has(key)) {
+					groupedMap.set(key, {content_no,name,totalSalesCount: sales,totalRevenue: Number(revenue)*sales});
+				} else {
+					const entry = groupedMap.get(key);
+					entry.totalSalesCount += sales;	
+					entry.totalRevenue += Number(revenue)*sales;
+				}
+			}
+
+			const groupedData = Array.from(groupedMap.values());
+			const finalData = groupedData.map(d => [d.content_no, d.name, d.totalSalesCount, d.totalRevenue, d.totalRevenue*0.7]);
+			console.log('파일 파싱 완료');
+			fs.unlinkSync(filePath);
+			resolve(finalData);
 		}
 	});
 }
@@ -663,7 +716,47 @@ async function downloadyes24() {
 		await driver.findElement(By.css('input[value="로그인"]')).click()
 		await sleep(2000)
 
-		await sleep(20000000)
+		// 매출 페이지로 이동
+		await driver.get('https://cp.k-epub.com/calculate/sell/B2C.do');
+		await sleep(300);
+		
+		// 날짜 입력
+		const date = getYesterday('file');
+		await driver.executeScript(`
+			const input = document.getElementById('date1');
+			input.value = arguments[0];
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+			input.dispatchEvent(new Event('change', { bubbles: true }));
+		`, date);
+		await sleep(300)
+		await driver.executeScript(`
+			const input = document.getElementById('date2');
+			input.value = arguments[0];
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+			input.dispatchEvent(new Event('change', { bubbles: true }));
+		`, date);
+		await sleep(300)
+		console.log('✅ 날짜 입력 완료');
+
+		// 조회 버튼 클릭
+		await driver.executeScript('funSearch();');
+		console.log('🔍 조회 버튼 클릭');
+		await sleep(2000);
+
+		// 엑셀 다운로드 버튼 클릭
+		await driver.executeScript('excelExport();');
+		console.log('📥 엑셀 다운로드 클릭');
+		await sleep(3000);
+
+		// 대화상자 대기 후 '확인' 누르기
+		try {
+			const alert = await driver.wait(until.alertIsPresent(), 5000); // 최대 5초 대기
+			await alert.accept(); // 확인 클릭
+			console.log('✅ 확인 버튼 클릭 완료');
+		} catch (err) {
+			console.error('❌ alert 확인 실패:', err.message);
+		}
+		await sleep(3000)
 	} catch (e) {
         console.log(e);
 	} finally {
@@ -960,7 +1053,7 @@ async function crawling(platform) {
 	else if(platform=="joara") {data = await downloadjoara();}
 	else if(platform=="blice") {await downloadblice();}
 	// else if(platform=="piuri") {await downloadpiuri();};
-	// else if(platform=="yes24") {await downloadyes24();}
+	else if(platform=="yes24") {await downloadyes24();}
 
 	await sleep(1000);
 	if (platform !== "joara") {
@@ -985,13 +1078,14 @@ async function crawling(platform) {
 // }
 
 const run = async () => {
-	await crawling("series");
-	await crawling("kakao");
-	await crawling("ridi");
-	await crawling("kyobo");
-	await crawling("aladin");
-	await crawling("joara");
-	await crawling("blice");
+	// await crawling("series");
+	// await crawling("kakao");
+	// await crawling("ridi");
+	// await crawling("kyobo");
+	// await crawling("aladin");
+	// await crawling("joara");
+	// await crawling("blice");
+	await crawling("yes24");
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');
   	process.exit(0);  // 👈 Node.js 프로세스 종료
 }
