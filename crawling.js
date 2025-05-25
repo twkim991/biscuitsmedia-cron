@@ -1078,13 +1078,13 @@ async function crawling(platform) {
 // }
 
 const run = async () => {
-	// await crawling("series");
-	// await crawling("kakao");
-	// await crawling("ridi");
-	// await crawling("kyobo");
-	// await crawling("aladin");
-	// await crawling("joara");
-	// await crawling("blice");
+	await crawling("series");
+	await crawling("kakao");
+	await crawling("ridi");
+	await crawling("kyobo");
+	await crawling("aladin");
+	await crawling("joara");
+	await crawling("blice");
 	await crawling("yes24");
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');
   	process.exit(0);  // 👈 Node.js 프로세스 종료
