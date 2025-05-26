@@ -407,7 +407,7 @@ function parseExcel(Platform, yesterday) {
 				let name = '';
 				let totalSalesCount = 0;
 				let totalRevenue = 0;
-				if(idx < 2 ) {return;}
+				if(idx < 2 || row[0] == '조회한 결과가 없습니다.') {return;}
 				content_no = row[5];
 				name = row[7];
 				totalSalesCount = row[8]/100;
