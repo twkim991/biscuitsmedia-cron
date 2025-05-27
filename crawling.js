@@ -122,6 +122,7 @@ function parseExcel(Platform, yesterday) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
@@ -159,6 +160,7 @@ function parseExcel(Platform, yesterday) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
@@ -216,6 +218,7 @@ function parseExcel(Platform, yesterday) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			const filePath = unzipAndRename(DOWNLOAD_DIR, `${expectedFileName}.zip`, `${Platform}_${yesterday}.csv`);
@@ -275,6 +278,7 @@ function parseExcel(Platform, yesterday) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
@@ -333,6 +337,7 @@ function parseExcel(Platform, yesterday) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
@@ -388,6 +393,7 @@ function parseExcel(Platform, yesterday) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
@@ -425,6 +431,7 @@ function parseExcel(Platform, yesterday) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
@@ -497,7 +504,7 @@ async function downloadseries() {
 		.build();
 
 	try {
-		console.log("목록 수집중...")
+		console.log("시리즈 목록 수집중...")
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();
@@ -573,7 +580,7 @@ async function downloadkakao() {
 		.build();
 
 	try {
-		console.log("목록 수집중...")
+		console.log("카카오 목록 수집중...")
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();
@@ -603,14 +610,14 @@ async function downloadkakao() {
 		// 시작일 필드 클릭 → 달력 열기 달력에서 → 어제 날짜 클릭
 		await inputs[0].click();
 		await sleep(300); // 렌더링 대기
-		const dateButton = await driver.findElement(By.xpath(`//div[contains(@class, "react-datepicker__day") and @tabindex="-1" and text()='${d}']`));
+		const dateButton = await driver.findElement(By.xpath(`//div[contains(@class, 'react-datepicker__day') and not(contains(@class, 'outside-month')) and text()='${d}']`));
 		await dateButton.click();
 		await sleep(500);
 
 		// 종료일도 동일하게 클릭
 		await inputs[1].click();
 		await sleep(300);
-		const dateButton2 = await driver.findElement(By.xpath(`//div[contains(@class, "react-datepicker__day") and @tabindex="-1" and text()='${d}']`));
+		const dateButton2 = await driver.findElement(By.xpath(`//div[contains(@class, 'react-datepicker__day') and not(contains(@class, 'outside-month')) and text()='${d}']`));
 		await dateButton2.click();
 		await sleep(500);
 
@@ -647,7 +654,7 @@ async function downloadridi() {
 		.build();
 
 	try {
-		console.log("목록 수집중...")
+		console.log("리디 목록 수집중...")
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();
@@ -701,7 +708,7 @@ async function downloadyes24() {
 		.build();
 
 	try {
-		console.log("목록 수집중...")
+		console.log("예스24 목록 수집중...")
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();
@@ -772,7 +779,7 @@ async function downloadkyobo() {
 		.build();
 
 	try {
-		console.log("목록 수집중...")
+		console.log("교보문고 목록 수집중...")
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();
@@ -830,7 +837,7 @@ async function downloadjoara() {
 		.build();
 
 	try {
-		console.log("목록 수집중...")
+		console.log("조아라 목록 수집중...")
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();
@@ -908,7 +915,7 @@ async function downloadaladin() {
 		.build();
 
 	try {
-		console.log("목록 수집중...")
+		console.log("알라딘 목록 수집중...")
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();
@@ -976,7 +983,7 @@ async function downloadblice() {
 		.build();
 
 	try {
-		console.log("목록 수집중...")
+		console.log("블라이스 목록 수집중...")
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();

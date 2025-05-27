@@ -100,6 +100,7 @@ function parseExcel(Platform) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
@@ -139,6 +140,7 @@ function parseExcel(Platform) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
@@ -196,6 +198,7 @@ function parseExcel(Platform) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			const filePath = unzipAndRename(DOWNLOAD_DIR, `${expectedFileName}20250201_20250531.zip`, `${Platform}.csv`);
@@ -244,6 +247,7 @@ function parseExcel(Platform) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
@@ -281,6 +285,7 @@ function parseExcel(Platform) {
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
 				resolve([]);
+				return;
 			}
 
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
