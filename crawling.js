@@ -478,6 +478,49 @@ function parseExcel(Platform, yesterday) {
 			console.log('파일 파싱 완료');
 			fs.unlinkSync(filePath);
 			resolve(finalData);
+		}else if(Platform == 'bomtoon') {
+			// 파일이 제대로 다운로드 되어있는지 확인
+			const expectedFileName = `기간별 회차통계.xlsx`;
+			const matchedFile = fs.readdirSync(DOWNLOAD_DIR).find(name => name.endsWith(expectedFileName));
+			if (!matchedFile) {
+				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
+				resolve([]);
+				return;
+			}
+
+			const codeMap = {
+			'예비 매형의 닫히지 않는 구멍': 'noru0527_2',
+			'몽마인데요, 상대를 잘못 고른 것 같습니다. 살려_아앙_': 'noru0527',
+			'올리비아는 이미 나쁜 짓을 저질렀다': 'ggul0530',
+			'조직의 공주님': '22_0530',
+		};
+
+			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
+			const filePath = renameDownloadedFile(matchedFile, Platform, yesterday);
+			console.log(filePath)
+
+			const workbook = xlsx.readFile(filePath);
+			const sheetName = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheetName];
+			const rows = xlsx.utils.sheet_to_json(sheet, { defval: '', header: 1 });
+			const data = [];
+
+			rows.forEach(function(row,idx,arr){
+				// 결과를 저장할 배열과 변수
+				// console.log(row)
+				let content_no = 0;
+				let name = '';
+				let totalSalesCount = 0;
+				let totalRevenue = 0;
+				if(idx == 0 || row[13] == 0) {return;}
+				content_no = codeMap[row[0]];
+				totalSalesCount = row[13]
+				totalRevenue = row[13] * 180;
+				data.push([ content_no, name, totalSalesCount, totalRevenue, totalRevenue*0.6 ])
+			})
+			console.log('파일 파싱 완료');
+			fs.unlinkSync(filePath);
+			resolve(data);
 		}
 	});
 }
@@ -1049,6 +1092,80 @@ async function downloadblice() {
 	}
 }
 
+async function downloadbomtoon() {
+	const driver = await new Builder()
+		.forBrowser('chrome')
+		.setChromeOptions(chromeOptions)
+		.build();
+
+	try {
+		console.log("블라이스 목록 수집중...")
+
+		// 로그인 시도
+		await driver.manage().deleteAllCookies();
+		await driver.get('https://partner.balcony.studio/login');
+		await sleep(1000);
+
+		// 팝업창 닫기
+		const handles = await driver.getAllWindowHandles();
+
+		if (handles.length > 1) {
+			const mainHandle = handles[0];
+			const popupHandle = handles[1];
+
+			// 팝업으로 전환
+			await driver.switchTo().window(popupHandle);
+			await driver.close(); // 팝업 닫기
+
+			// 다시 원래 창으로 복귀
+			await driver.switchTo().window(mainHandle);
+		}
+
+		// 로그인 폼 입력
+		await driver.findElement(By.id('email')).sendKeys('edit@biscuitsmedia.com')
+		await sleep(300)
+		await driver.findElement(By.id('password')).sendKeys('apfhd@486')
+		await sleep(300)
+		await driver.findElement(By.css('button[type="submit"]')).click()
+		await sleep(5000)
+
+		// 매출 페이지로 이동
+		await driver.get('https://partner.balcony.studio/contents/statisticsByDatePeriod');
+		await sleep(300)
+		const selectBox = await driver.findElement(By.css('.MuiSelect-select'));
+		await selectBox.click();
+		await sleep(300)
+		const li = await driver.wait(until.elementLocated(By.css("li[data-value='BOMTOON_COM']")),5000);
+		await li.click();
+		await sleep(300);
+		
+		// 날짜 입력
+		const date = getYesterday('file');
+		await driver.executeScript(`document.getElementById(':r0:').value = arguments[0];`, date);
+		await sleep(300)
+		await driver.executeScript(`document.getElementById(':r2:').value = arguments[0];`, date);
+		await sleep(300)
+		console.log('✅ 날짜 입력 완료');
+
+		// 조회 버튼 클릭
+		const searchBtn = await driver.wait(until.elementLocated(By.xpath("//button[text()='검색']")), 10000);
+		await driver.executeScript("arguments[0].click();", searchBtn);
+		console.log('🔍 조회 버튼 클릭');
+		await sleep(2000);
+
+		// 엑셀 다운로드 버튼 클릭
+		const excelBtn = await driver.wait(until.elementLocated(By.xpath("//button[text()='엑셀 다운로드']")), 10000);
+		await driver.executeScript("arguments[0].click();", excelBtn);
+		console.log('📥 엑셀 다운로드 클릭');
+		await sleep(3000);
+	} catch (e) {
+        console.log(e);
+	} finally {
+        console.log('종료')
+		await driver.quit();
+	}
+}
+
 async function crawling(platform) {
 	const salesDate = getYesterday('file');
 	let data = [];
@@ -1061,6 +1178,7 @@ async function crawling(platform) {
 	else if(platform=="blice") {await downloadblice();}
 	// else if(platform=="piuri") {await downloadpiuri();};
 	else if(platform=="yes24") {await downloadyes24();}
+	else if(platform=="bomtoon") {await downloadbomtoon();}
 
 	await sleep(1000);
 	if (platform !== "joara") {
@@ -1093,6 +1211,7 @@ const run = async () => {
 	await crawling("joara");
 	await crawling("blice");
 	await crawling("yes24");
+	await crawling("bomtoon");
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');
   	process.exit(0);  // 👈 Node.js 프로세스 종료
 }
