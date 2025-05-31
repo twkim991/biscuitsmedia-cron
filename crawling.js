@@ -54,6 +54,17 @@ function getToday(format = 'file') {
 	return format === 'file' ? `${yyyy}-${mm}-${dd}` : `${yyyy}${mm}${dd}`;
 }
 
+function toKST(utc) {
+  const utcDate = new Date(utc);
+  const kstDate = new Date(utcDate.getTime() + 9 * 60 * 60 * 1000); // +9시간
+
+  const year = kstDate.getFullYear();
+  const month = String(kstDate.getMonth() + 1).padStart(2, '0'); // 0부터 시작
+  const day = String(kstDate.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 // // 시리즈는 contentsSelling_2025-04-04
 // // 카카오는 시리즈일매출통계-2025-03-01
 // // 리디는 calculate_date_2025-04-04_2025-04-04
@@ -519,8 +530,30 @@ function parseExcel(Platform, yesterday) {
 				data.push([ content_no, name, totalSalesCount, totalRevenue, totalRevenue*0.6 ])
 			})
 			console.log('파일 파싱 완료');
+			// 중복되는 값들을 하나로 합치는 과정 추가
+			const finalMap = new Map();
+
+			data.forEach(row => {
+				const [content_no, name, count, revenue, payout] = row;
+				// console.log(row)
+				const key = `${content_no}::${name}`;
+
+				if (!finalMap.has(key)) {
+					finalMap.set(key, [content_no, name, 0, 0, 0]); // 초기값 설정
+				}
+
+				const entry = finalMap.get(key);
+				entry[2] += Number(count);     // 총 판매수 합산
+				entry[3] += Number(revenue);   // 총 매출 합산
+				entry[4] += Number(payout);    // 총 정산금액 합산
+			});
+
+			const finaldata = Array.from(finalMap.values());
+			// console.log(finaldata);
+
+
 			fs.unlinkSync(filePath);
-			resolve(data);
+			resolve(finaldata);
 		}
 	});
 }
@@ -1099,7 +1132,7 @@ async function downloadbomtoon() {
 		.build();
 
 	try {
-		console.log("블라이스 목록 수집중...")
+		console.log("봄툰 목록 수집중...")
 
 		// 로그인 시도
 		await driver.manage().deleteAllCookies();
@@ -1141,10 +1174,25 @@ async function downloadbomtoon() {
 		
 		// 날짜 입력
 		const date = getYesterday('file');
-		await driver.executeScript(`document.getElementById(':r0:').value = arguments[0];`, date);
-		await sleep(300)
-		await driver.executeScript(`document.getElementById(':r2:').value = arguments[0];`, date);
-		await sleep(300)
+		const targetDate = new Date(date);
+		const timestamp = targetDate.getTime() - (9 * 60 * 60 * 1000);
+		
+		const calendarBtn = await driver.findElements(By.css('button[aria-label^="Choose date"]'));
+		await calendarBtn[0].click();
+		await driver.sleep(1000); // 달력 렌더링 대기
+		const nextmonthBtn = await driver.findElement(By.css('button[aria-label^="Next month"]'));
+		await nextmonthBtn.click();
+		const dayBtn = await driver.findElement(By.css(`button[data-timestamp="${timestamp}"]`));
+		await driver.sleep(300);
+		await dayBtn.click();
+		await sleep(1000)
+
+		await calendarBtn[1].click();
+		await driver.sleep(1000); // 달력 렌더링 대기
+		const dayBtn2 = await driver.findElement(By.css(`button[data-timestamp="${timestamp}"]`));
+		await driver.sleep(300);
+		await dayBtn2.click();
+		await sleep(1000)
 		console.log('✅ 날짜 입력 완료');
 
 		// 조회 버튼 클릭
