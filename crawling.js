@@ -932,12 +932,23 @@ async function downloadjoara() {
 		await driver.get('https://cp.joara.com/literature/account/account_list.html');
 		await sleep(2000)
 
+		const day = new Date(getToday('file')).getDate();
+		const month = new Date(getYesterday('file')).getMonth();
+		if(day == 1) {
+			const selectElement = await driver.findElement(By.id('s_month'));
+			const optionToSelect = await selectElement.findElement(By.css(`option[value="${month+1}"]`));
+			await optionToSelect.click();
+			await sleep(2000);
+		}
+
 		const rows = await driver.findElements(By.css('div.table_wrap tr'));
 		const results = [];
 
 		for (const row of rows) {
 			const tds = await row.findElements(By.css('td'));
 			if (tds.length === 0) continue; // 헤더 또는 빈 tr 무시
+			const isnothing = await tds[0].getText();
+			if(isnothing == '* 정산 내역이 없습니다.') break;
 
 			const span = await tds[0].findElement(By.css('span.list1'));
 			const contentNo = await span.getAttribute('name');
@@ -1181,7 +1192,11 @@ async function downloadbomtoon() {
 		await calendarBtn[0].click();
 		await driver.sleep(1000); // 달력 렌더링 대기
 		const nextmonthBtn = await driver.findElement(By.css('button[aria-label^="Next month"]'));
-		await nextmonthBtn.click();
+		const day = new Date(getToday('file')).getDate();
+		if(day != 1) {
+			await nextmonthBtn.click();
+			await sleep(1000);
+		}
 		const dayBtn = await driver.findElement(By.css(`button[data-timestamp="${timestamp}"]`));
 		await driver.sleep(300);
 		await dayBtn.click();
@@ -1189,6 +1204,11 @@ async function downloadbomtoon() {
 
 		await calendarBtn[1].click();
 		await driver.sleep(1000); // 달력 렌더링 대기
+		if(day == 1) {
+			const previousmonthBtn = await driver.findElement(By.css('button[aria-label^="Previous month"]'));
+			await previousmonthBtn.click();
+			await sleep(1000);
+		}
 		const dayBtn2 = await driver.findElement(By.css(`button[data-timestamp="${timestamp}"]`));
 		await driver.sleep(300);
 		await dayBtn2.click();
@@ -1251,14 +1271,14 @@ async function crawling(platform) {
 // }
 
 const run = async () => {
-	await crawling("series");
-	await crawling("kakao");
-	await crawling("ridi");
-	await crawling("kyobo");
-	await crawling("aladin");
-	await crawling("joara");
-	await crawling("blice");
-	await crawling("yes24");
+	// await crawling("series");
+	// await crawling("kakao");
+	// await crawling("ridi");
+	// await crawling("kyobo");
+	// await crawling("aladin");
+	// await crawling("joara");
+	// await crawling("blice");
+	// await crawling("yes24");
 	await crawling("bomtoon");
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');
   	process.exit(0);  // 👈 Node.js 프로세스 종료
