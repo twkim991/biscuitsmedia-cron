@@ -708,35 +708,8 @@ async function downloadkakao() {
 		await dateButton2.click();
 		await sleep(500);
 
-		
-		// // 날짜 입력
-		// await driver.sleep(1000); // 달력 렌더링 대기
-		// const nextmonthBtn = await driver.findElement(By.css('button[aria-label^="Next month"]'));
-		// const day = new Date(getToday('file')).getDate();
-		// if(day != 1) {
-		// 	await nextmonthBtn.click();
-		// 	await sleep(1000);
-		// }
-		// const dayBtn = await driver.findElement(By.css(`button[data-timestamp="${timestamp}"]`));
-		// await driver.sleep(300);
-		// await dayBtn.click();
-		// await sleep(1000)
-
-		// await calendarBtn[1].click();
-		// await driver.sleep(1000); // 달력 렌더링 대기
-		// if(day == 1) {
-		// 	const previousmonthBtn = await driver.findElement(By.css('button[aria-label^="Previous month"]'));
-		// 	await previousmonthBtn.click();
-		// 	await sleep(1000);
-		// }
-		// const dayBtn2 = await driver.findElement(By.css(`button[data-timestamp="${timestamp}"]`));
-		// await driver.sleep(300);
-		// await dayBtn2.click();
-		// await sleep(1000)
-		// console.log('✅ 날짜 입력 완료');
-
 		console.log('✅ 날짜 입력 완료');
-		await sleep(4000000)
+		await sleep(2000)
 
 		// 조회 버튼 클릭<button class="css-1iiteto" type="submit" form="searchFormSeriesSales" data-id="search">조회</button>
 		const searchBtn = await driver.wait(until.elementLocated(By.xpath("//button[text()='조회']")), 10000);
