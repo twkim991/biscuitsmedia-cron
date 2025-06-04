@@ -681,11 +681,17 @@ async function downloadkakao() {
 		// 날짜 입력
 		const date = getYesterday('file');
 		const d = parseInt(date.split('-')[2], 10);
+		const day = new Date(getToday('file')).getDate();
 		const inputs = await driver.findElements(By.css('.react-datepicker__input-container input'));
 
 		// 시작일 필드 클릭 → 달력 열기 달력에서 → 어제 날짜 클릭
 		await inputs[0].click();
 		await sleep(300); // 렌더링 대기
+		if(day == 1) {
+			const previousmonthBtn = await driver.findElement(By.css('button[aria-label^="Previous Month"]'));
+			await previousmonthBtn.click();
+			await sleep(1000);
+		}
 		const dateButton = await driver.findElement(By.xpath(`//div[contains(@class, 'react-datepicker__day') and not(contains(@class, 'outside-month')) and text()='${d}']`));
 		await dateButton.click();
 		await sleep(500);
@@ -693,12 +699,44 @@ async function downloadkakao() {
 		// 종료일도 동일하게 클릭
 		await inputs[1].click();
 		await sleep(300);
+		if(day == 1) {
+			const previousmonthBtn = await driver.findElement(By.css('button[aria-label^="Previous Month"]'));
+			await previousmonthBtn.click();
+			await sleep(1000);
+		}
 		const dateButton2 = await driver.findElement(By.xpath(`//div[contains(@class, 'react-datepicker__day') and not(contains(@class, 'outside-month')) and text()='${d}']`));
 		await dateButton2.click();
 		await sleep(500);
 
+		
+		// // 날짜 입력
+		// await driver.sleep(1000); // 달력 렌더링 대기
+		// const nextmonthBtn = await driver.findElement(By.css('button[aria-label^="Next month"]'));
+		// const day = new Date(getToday('file')).getDate();
+		// if(day != 1) {
+		// 	await nextmonthBtn.click();
+		// 	await sleep(1000);
+		// }
+		// const dayBtn = await driver.findElement(By.css(`button[data-timestamp="${timestamp}"]`));
+		// await driver.sleep(300);
+		// await dayBtn.click();
+		// await sleep(1000)
+
+		// await calendarBtn[1].click();
+		// await driver.sleep(1000); // 달력 렌더링 대기
+		// if(day == 1) {
+		// 	const previousmonthBtn = await driver.findElement(By.css('button[aria-label^="Previous month"]'));
+		// 	await previousmonthBtn.click();
+		// 	await sleep(1000);
+		// }
+		// const dayBtn2 = await driver.findElement(By.css(`button[data-timestamp="${timestamp}"]`));
+		// await driver.sleep(300);
+		// await dayBtn2.click();
+		// await sleep(1000)
+		// console.log('✅ 날짜 입력 완료');
+
 		console.log('✅ 날짜 입력 완료');
-		await sleep(4000)
+		await sleep(4000000)
 
 		// 조회 버튼 클릭<button class="css-1iiteto" type="submit" form="searchFormSeriesSales" data-id="search">조회</button>
 		const searchBtn = await driver.wait(until.elementLocated(By.xpath("//button[text()='조회']")), 10000);
