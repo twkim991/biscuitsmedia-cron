@@ -556,6 +556,98 @@ function parseExcel(Platform, yesterday) {
 
 			fs.unlinkSync(filePath);
 			resolve(finaldata);
+		}else if(Platform == 'bookcube') {
+			// 파일이 제대로 다운로드 되어있는지 확인
+			const expectedFileName2 = `도서 등록 현황`;
+			const matchedFile2 = fs.readdirSync(DOWNLOAD_DIR).find(name => name.startsWith(expectedFileName2));
+			if (!matchedFile2) {
+				console.log(`❌${expectedFileName2}이 없습니다. 다운로드 실패로 간주합니다.`);
+				resolve([]);
+				return;
+			}
+
+			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
+			const filePath2 = renameDownloadedFile(matchedFile2, Platform, yesterday);
+			console.log(filePath2)
+
+			const workbook2 = xlsx.readFile(filePath2);
+			const sheetName2 = workbook2.SheetNames[0];
+			const sheet2 = workbook2.Sheets[sheetName2];
+			const rows2 = xlsx.utils.sheet_to_json(sheet2, { defval: '', header: 1 });
+			const data2 = {};
+
+			rows2.forEach(function(row,idx,arr){
+				// 결과를 저장할 배열과 변수
+				// console.log(row)
+				let content_no = 0;
+				let title = '';
+				if(idx < 2) {return;}
+				content_no = row[1];
+				title = row[2];
+				data2[title] = content_no;
+			})
+			// console.log(data2);
+
+			fs.unlinkSync(filePath2);
+
+			// 파일이 제대로 다운로드 되어있는지 확인
+			const expectedFileName = `북큐브 일별매출`;
+			const matchedFile = fs.readdirSync(DOWNLOAD_DIR).find(name => name.startsWith(expectedFileName));
+			if (!matchedFile) {
+				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
+				resolve([]);
+				return;
+			}
+
+			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
+			const filePath = renameDownloadedFile(matchedFile, Platform, yesterday);
+			console.log(filePath)
+			console.log(yesterday)
+
+			const workbook = xlsx.readFile(filePath);
+			const sheetName = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheetName];
+			const rows = xlsx.utils.sheet_to_json(sheet, { defval: '', header: 1 });
+			const data = [];
+
+			rows.forEach(function(row,idx,arr){
+				// 결과를 저장할 배열과 변수
+				// console.log(row)
+				let content_no = 0;
+				let name = '';
+				let totalSalesCount = 0;
+				let totalRevenue = 0;
+				// if(idx < 2 || row[0] == '조회한 결과가 없습니다.' || row[0] != yesterday) {return;}
+				if(idx < 2) {return;}
+				content_no = data2[row[1]];
+				totalSalesCount = row[3];
+				totalRevenue = row[4];
+				data.push([ content_no, name, totalSalesCount, totalRevenue, totalRevenue*0.7 ])
+			})
+			console.log('파일 파싱 완료');
+
+			// 중복되는 값들을 하나로 합치는 과정 추가
+			const finalMap = new Map();
+
+			data.forEach(row => {
+				const [content_no, name, count, revenue, payout] = row;
+				const key = `${content_no}::${name}`;
+
+				if (!finalMap.has(key)) {
+					finalMap.set(key, [content_no, name, 0, 0, 0]); // 초기값 설정
+				}
+
+				const entry = finalMap.get(key);
+				entry[2] += Number(count);     // 총 판매수 합산
+				entry[3] += Number(revenue);   // 총 매출 합산
+				entry[4] += Number(payout);    // 총 정산금액 합산
+			});
+
+			const finaldata = Array.from(finalMap.values());
+			// console.log(finaldata);
+
+			fs.unlinkSync(filePath);
+			resolve(finaldata);
 		}
 	});
 }
@@ -1247,6 +1339,71 @@ async function downloadbomtoon() {
 	}
 }
 
+async function downloadbookcube() {
+	const driver = await new Builder()
+		.forBrowser('chrome')
+		.setChromeOptions(chromeOptions)
+		.build();
+
+	try {
+		console.log("북큐브 목록 수집중...")
+
+		// 로그인 시도
+		await driver.manage().deleteAllCookies();
+		await driver.get('https://scm.bookcube.com/');
+		await sleep(1000);
+
+		// 로그인 폼 입력
+		await driver.findElement(By.id('userid')).sendKeys('비스킷미디어')
+		await sleep(300)
+		await driver.findElement(By.css('input[name="password"]')).sendKeys('20240901!q')
+		await sleep(300)
+		await driver.findElement(By.css('button[type="submit"]')).click()
+		await sleep(5000)
+		
+		const closeButtons = await driver.findElements(By.xpath("//button[.//span[normalize-space(text())='닫기']]"));
+		for (const button of closeButtons) {
+			try {
+				await button.click();
+				await sleep(200); // 클릭 간 딜레이 (필요시)
+			} catch (e) {
+				console.error('❌ 닫기 버튼 클릭 실패:', e.message);
+			}
+		}
+
+		// 등록현황 페이지로 이동
+		await driver.get('https://scm.bookcube.com/book');
+		await sleep(2000)
+
+		// 엑셀 다운로드 버튼 클릭
+		const excelBtn2 = await driver.wait(until.elementLocated(By.xpath("//button[.//span[normalize-space(text())='엑셀다운']]")), 10000);
+		await driver.executeScript("arguments[0].click();", excelBtn2);
+		console.log('📥 작품정보 다운로드');
+		await sleep(3000);
+
+		// 매출 페이지로 이동
+		await driver.get('https://scm.bookcube.com/sales/days');
+		await sleep(2000)
+
+		// 조회 버튼 클릭
+		const searchBtn = await driver.wait(until.elementLocated(By.xpath("//button[.//span[normalize-space(text())='검색']]")), 10000);
+		await driver.executeScript("arguments[0].click();", searchBtn);
+		console.log('🔍 조회 버튼 클릭');
+		await sleep(2000);
+
+		// 엑셀 다운로드 버튼 클릭
+		const excelBtn = await driver.wait(until.elementLocated(By.xpath("//button[.//span[normalize-space(text())='엑셀다운']]")), 10000);
+		await driver.executeScript("arguments[0].click();", excelBtn);
+		console.log('📥 엑셀 다운로드 클릭');
+		await sleep(3000);
+	} catch (e) {
+        console.log(e);
+	} finally {
+        console.log('종료')
+		await driver.quit();
+	}
+}
+
 async function crawling(platform) {
 	const salesDate = getYesterday('file');
 	let data = [];
@@ -1260,6 +1417,7 @@ async function crawling(platform) {
 	// else if(platform=="piuri") {await downloadpiuri();};
 	else if(platform=="yes24") {await downloadyes24();}
 	else if(platform=="bomtoon") {await downloadbomtoon();}
+	else if(platform=="bookcube") {await downloadbookcube();}
 
 	await sleep(1000);
 	if (platform !== "joara") {
@@ -1293,6 +1451,7 @@ const run = async () => {
 	await crawling("blice");
 	await crawling("yes24");
 	await crawling("bomtoon");
+	await crawling("bookcube");
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');
   	process.exit(0);  // 👈 Node.js 프로세스 종료
 }
