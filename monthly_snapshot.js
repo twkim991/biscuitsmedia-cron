@@ -96,6 +96,7 @@ async function runMonthlySettlement() {
 
 		await connection.end();
 		console.log('✅ 월별 정산 프로세스 완료:', new Date());
+		process.exit(0);  // 👈 Node.js 프로세스 종료
 
 	} catch (err) {
 		console.error('❌ 정산 오류:', err.message);
