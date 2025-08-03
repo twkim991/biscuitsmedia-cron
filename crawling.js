@@ -10,6 +10,15 @@ const AdmZip = require('adm-zip');
 const csv = require('csv-parser');
 const iconv = require('iconv-lite');
 let TODAY = new Date();
+const bomtoon_codes = {};
+// const codeMap = {
+// 			'예비 매형의 닫히지 않는 구멍': 'noru0527_2',
+// 			'몽마인데요, 상대를 잘못 고른 것 같습니다. 살려_아앙_': 'noru0527',
+// 			'올리비아는 이미 나쁜 짓을 저질렀다': 'ggul0530',
+// 			'조직의 공주님': '22_0530',
+// 			'명예혁명': 'van20250519',
+// 			'초콜릿이 먹고 싶었을 뿐인데': 'rir20250520',
+// 		};
 
 // ✅ 설정값들
 const DOWNLOAD_DIR = path.resolve(__dirname, 'downloads');
@@ -499,15 +508,6 @@ function parseExcel(Platform, yesterday) {
 				return;
 			}
 
-			const codeMap = {
-			'예비 매형의 닫히지 않는 구멍': 'noru0527_2',
-			'몽마인데요, 상대를 잘못 고른 것 같습니다. 살려_아앙_': 'noru0527',
-			'올리비아는 이미 나쁜 짓을 저질렀다': 'ggul0530',
-			'조직의 공주님': '22_0530',
-			'명예혁명': 'van20250519',
-			'초콜릿이 먹고 싶었을 뿐인데': 'rir20250520',
-		};
-
 			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
 			const filePath = renameDownloadedFile(matchedFile, Platform, yesterday);
 			console.log(filePath)
@@ -526,13 +526,14 @@ function parseExcel(Platform, yesterday) {
 				let totalSalesCount = 0;
 				let totalRevenue = 0;
 				if(idx == 0 || row[13] == 0) {return;}
-				content_no = codeMap[row[0]];
+				content_no = bomtoon_codes[row[0]];
 				totalSalesCount = row[13]
 				totalRevenue = row[13] * 180;
 				data.push([ content_no, name, totalSalesCount, totalRevenue, totalRevenue*0.6 ])
 			})
 			console.log('파일 파싱 완료');
 			// 중복되는 값들을 하나로 합치는 과정 추가
+			// console.log(data)
 			const finalMap = new Map();
 
 			data.forEach(row => {
@@ -1331,6 +1332,27 @@ async function downloadbomtoon() {
 		await driver.executeScript("arguments[0].click();", excelBtn);
 		console.log('📥 엑셀 다운로드 클릭');
 		await sleep(3000);
+
+		// 작품관리 페이지로 이동
+		await driver.get('https://partner.balcony.studio/store/contents');
+		await sleep(3000);
+		const trs = await driver.findElements(By.css('.MuiTableRow-root'));
+
+		for (const tr of trs) {
+			try {
+				const tds = await tr.findElements(By.css('td'));
+
+				if (tds.length >= 2) {
+					const title = await tds[0].getText(); // 첫 번째 td: 제목
+					const codeLink = await tds[1].findElement(By.css('a'));
+					const code = await codeLink.getText(); // 두 번째 td의 <a> 텍스트: 코드
+
+					bomtoon_codes[title] = code
+				}
+			} catch (err) {
+				console.error('❌ 오류 발생:', err.message);
+			}
+		}
 	} catch (e) {
         console.log(e);
 	} finally {
