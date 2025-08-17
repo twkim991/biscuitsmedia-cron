@@ -277,9 +277,11 @@ function parseExcel(Platform, yesterday) {
 				const cell = row['저자'] || '';
 				name = cell.match(/T\("(.*)"\)/)[1];
 				totalSalesCount = row['판매권'] || 0;
+				totalCancell = row['취소권'] || 0;
 				totalRevenue = row['판매액'] || 0;
+				totalCancellrevenue = row['취소액'] || 0;
 				totalSettlement = row['정산액'] || 0;
-				data.push([Number(content_no), name, Number(totalSalesCount), Number(totalRevenue), Number(totalSettlement)]);
+				data.push([Number(content_no), name, Number(totalSalesCount) - Number(totalCancell), Number(totalRevenue) - Number(totalCancellrevenue), Number(totalSettlement)]);
 			})
 			.on('end', () => {
 				console.log('CSV 파일 파싱 완료');
