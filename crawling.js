@@ -584,7 +584,7 @@ function parseExcel(Platform, yesterday) {
 				// console.log(row)
 				let content_no = 0;
 				let title = '';
-				if(idx < 2) {return;}
+				if(idx < 1) {return;}
 				content_no = row[1];
 				title = row[2];
 				data2[title] = content_no;
