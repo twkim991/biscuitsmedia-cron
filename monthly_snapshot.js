@@ -155,7 +155,7 @@ async function downloadpiuri() {
 async function runMonthlySettlement() {
 	console.log('📦 월별 정산 내역 계산 시작:', new Date());
 
-	// await downloadpiuri();
+	await downloadpiuri();
 
 	try {
 		const connection = await mysql.createConnection(dbConfig);
@@ -252,5 +252,6 @@ cron.schedule('0 0 1 * *', runMonthlySettlement); // 매달 1일 자정에 실�
 
 // 테스트 시점에서 수동 실행
 if (require.main === module) {
+	// downloadpiuri();
 	runMonthlySettlement();
 }
