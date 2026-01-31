@@ -107,6 +107,22 @@ async function downloadpiuri() {
 			const [code, name, platform, totalcount, category, totalrevenue, totalrealrevenue, realpayment] = [rowData[13], rowData[3], 'piuri', rowData[8], '0', Number(rowData[9].replace(/,/g, '')), Number(rowData[10].replace(/,/g, '')), 세전실정산금액]
 			console.log(code, name, platform, totalcount, category, totalrevenue, totalrealrevenue, realpayment)
 
+			// 🔴 [추가] 중복 검사 로직
+			// 해당 연월, 작품코드, 플랫폼, 매출유형으로 이미 정산된 내역이 있는지 확인
+			const [existCheck] = await connection.execute(`
+				SELECT 1 FROM bis2203.월별정산내역 
+				WHERE 연월 = ? 
+				AND 작품코드 = ? 
+				AND 플랫폼명 = ? 
+				AND 매출유형 = ?
+				LIMIT 1
+			`, [yearMonth, code, platform, category]);
+
+			if (existCheck.length > 0) {
+				console.log(`⚠️ 이미 정산 완료됨 (건너뜀): ${yearMonth} / ${code} / ${platform}`);
+				continue; // 이미 있으면 다음 루프로 넘어감 (INSERT 및 MG 차감 실행 X)
+			}
+
       		// MG 테이블에서 현재 MG 가져오기
 			const [[mgRow]] = await connection.execute(`
 				SELECT MG FROM bis2203.mg WHERE 작품코드 = ? AND 플랫폼명 = ? AND mg != 0
@@ -162,7 +178,7 @@ async function runMonthlySettlement() {
 
 		const targetMonth = new Date();
 		// targetMonth.setMonth(targetMonth.getMonth() - 1);
-		targetMonth.setMonth(targetMonth.getMonth() - 1); // 저번달로 설정
+		targetMonth.setMonth(targetMonth.getMonth() - 2); // 저번달로 설정
 		const yearMonth = targetMonth.toISOString().slice(0, 7); // 'YYYY-MM'
 
 		// 1. 전월 매출 데이터 group by (작품코드 + 필명 + 플랫폼명 + 매출유형)
@@ -200,6 +216,22 @@ async function runMonthlySettlement() {
 			const totalrealrevenue = row.총순매출;
 			const realpayment = row.세전실정산금액
 			console.log(code, name, platform, category, totalrevenue, totalrealrevenue, realpayment)
+
+			// 🔴 [추가] 중복 검사 로직
+			// 해당 연월, 작품코드, 플랫폼, 매출유형으로 이미 정산된 내역이 있는지 확인
+			const [existCheck] = await connection.execute(`
+				SELECT 1 FROM bis2203.월별정산내역 
+				WHERE 연월 = ? 
+				AND 작품코드 = ? 
+				AND 플랫폼명 = ? 
+				AND 매출유형 = ?
+				LIMIT 1
+			`, [yearMonth, code, platform, category]);
+
+			if (existCheck.length > 0) {
+				console.log(`⚠️ 이미 정산 완료됨 (건너뜀): ${yearMonth} / ${code} / ${platform}`);
+				continue; // 이미 있으면 다음 루프로 넘어감 (INSERT 및 MG 차감 실행 X)
+			}
 
       		// MG 테이블에서 현재 MG 가져오기
 			const [[mgRow]] = await connection.execute(`

@@ -44,19 +44,10 @@ const dbConfig = {
 };
 
 // 📅 어제 날짜 구하기
-function getYesterday(format = 'file') {
+function getYesterday(count, format = 'file') {
 	const d = new Date();
 	console.log(d)
-	d.setDate(d.getDate() - 1); // ← 어제 날짜
-	const yyyy = d.getFullYear();
-	const mm = String(d.getMonth() + 1).padStart(2, '0');
-	const dd = String(d.getDate()).padStart(2, '0');
-	return format === 'file' ? `${yyyy}-${mm}-${dd}` : `${yyyy}${mm}${dd}`;
-}
-
-function getToday(format = 'file') {
-	const d = new Date();
-	console.log(d)
+	d.setDate(d.getDate() - count); // ← 어제 날짜
 	const yyyy = d.getFullYear();
 	const mm = String(d.getMonth() + 1).padStart(2, '0');
 	const dd = String(d.getDate()).padStart(2, '0');
@@ -136,7 +127,7 @@ function parseExcel(Platform, yesterday) {
 	return new Promise(async(resolve, reject) => {
 		if(Platform == 'series') {
 			// 파일이 제대로 다운로드 되어있는지 확인
-			const expectedFileName = `contentsSelling_${getToday('file')}`;
+			const expectedFileName = `contentsSelling_${getYesterday(0, 'file')}`;
 			console.log(expectedFileName)
 			const matchedFile = fs.readdirSync(DOWNLOAD_DIR).find(name => name.startsWith(expectedFileName));
 			if (!matchedFile) {
@@ -410,7 +401,7 @@ function parseExcel(Platform, yesterday) {
 			resolve(finalData);
 		}else if(Platform == 'blice') {
 			// 파일이 제대로 다운로드 되어있는지 확인
-			const expectedFileName = `판매현황${getToday('date')}`;
+			const expectedFileName = `판매현황${getYesterday(0, 'date')}`;
 			const matchedFile = fs.readdirSync(DOWNLOAD_DIR).find(name => name.startsWith(expectedFileName));
 			if (!matchedFile) {
 				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
@@ -651,6 +642,51 @@ function parseExcel(Platform, yesterday) {
 
 			fs.unlinkSync(filePath);
 			resolve(finaldata);
+		}else if(Platform == 'mrblue') {
+			// 파일이 제대로 다운로드 되어있는지 확인
+			const realday = getYesterday(2, 'file')
+			const expectedFileName = `작품별정산_${realday}_${realday}`;
+			const matchedFile = fs.readdirSync(DOWNLOAD_DIR).find(name => name.startsWith(expectedFileName));
+			if (!matchedFile) {
+				console.log(`❌${expectedFileName}이 없습니다. 다운로드 실패로 간주합니다.`);
+				resolve([]);
+				return;
+			}
+
+			// 파일 이름을 platform_YYYY-MM-DD 꼴로 변경
+			const filePath = renameDownloadedFile(matchedFile, Platform, realday);
+			console.log(filePath)
+
+			const workbook = xlsx.readFile(filePath);
+			const sheetName = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheetName];
+			const rows = xlsx.utils.sheet_to_json(sheet, { defval: '', header: 1 });
+
+			const data = [];
+			rows.forEach(function(row,idx,arr){
+				// console.log(row)
+				if(idx == 5 ) {
+					// 결과를 저장할 배열과 변수
+					let content_no = 0;
+					let name = '';
+					let cancelcount = 0;
+					let cancelrevenue = 0;
+					let totalSalesCount = 0;
+					let totalRevenue = 0;
+					content_no = row[5];
+					name = row[7]
+					if (row[87] !== '미확정' && row[89] !== '미확정') {
+						cancelcount = Number(row[87])
+						cancelrevenue = Number(row[89])
+					}
+					totalSalesCount = Number(row[84]) - cancelcount
+					totalRevenue = Number(row[86]) - cancelrevenue
+					data.push([ content_no, name, totalSalesCount, totalRevenue, totalRevenue*0.63, realday ])
+				}
+			});
+			console.log('파일 파싱 완료');
+			fs.unlinkSync(filePath);
+			resolve(data);
 		}
 	});
 }
@@ -713,7 +749,7 @@ async function downloadseries() {
 		await driver.switchTo().frame(iframe);
 
 		// 날짜 입력
-		const date = getYesterday('date');
+		const date = getYesterday(1, 'date');
 		console.log(date)
 		const startDateInput = await driver.wait(until.elementLocated(By.id('startDate')),5000);
 		await startDateInput.clear();
@@ -776,9 +812,9 @@ async function downloadkakao() {
 		await sleep(2000)
 
 		// 날짜 입력
-		const date = getYesterday('file');
+		const date = getYesterday(1, 'file');
 		const d = parseInt(date.split('-')[2], 10);
-		const day = new Date(getToday('file')).getDate();
+		const day = new Date(getYesterday(0, 'file')).getDate();
 		const inputs = await driver.findElements(By.css('.react-datepicker__input-container input'));
 
 		// 시작일 필드 클릭 → 달력 열기 달력에서 → 어제 날짜 클릭
@@ -857,7 +893,7 @@ async function downloadridi() {
 		await driver.get('https://cp.ridibooks.com/calculate/by_date?main_reseller_id=0&view_type=m');
 		await sleep(2000)
 		// 날짜 입력
-		const date = getYesterday('date');
+		const date = getYesterday(1, 'date');
 		// JavaScript로 readonly 무시하고 값 설정
 		await driver.executeScript(`document.getElementById('date_started').value = arguments[0];`, date);
 		await sleep(300)
@@ -912,7 +948,7 @@ async function downloadyes24() {
 		await sleep(300);
 		
 		// 날짜 입력
-		const date = getYesterday('file');
+		const date = getYesterday(1, 'file');
 		await driver.executeScript(`
 			const input = document.getElementById('date1');
 			input.value = arguments[0];
@@ -987,7 +1023,7 @@ async function downloadkyobo() {
 		await sleep(300);
 		
 		// 날짜 입력
-		const date = getYesterday('date');
+		const date = getYesterday(1, 'date');
 		await driver.executeScript(`document.querySelector('input[name="strtDttm"]').value = arguments[0];`, date);
 		await sleep(300)
 		await driver.executeScript(`document.querySelector('input[name="endDttm"]').value = arguments[0];`, date);
@@ -1040,8 +1076,8 @@ async function downloadjoara() {
 		await driver.get('https://cp.joara.com/literature/account/account_list.html');
 		await sleep(2000)
 
-		const day = new Date(getToday('file')).getDate();
-		const month = new Date(getYesterday('file')).getMonth();
+		const day = new Date(getYesterday(0, 'file')).getDate();
+		const month = new Date(getYesterday(1, 'file')).getMonth();
 		if(day == 1) {
 			const selectElement = await driver.findElement(By.id('s_month'));
 			const optionToSelect = await selectElement.findElement(By.css(`option[value="${month+1}"]`));
@@ -1077,7 +1113,7 @@ async function downloadjoara() {
 			for (const popupRow of popupRows) {
 				const popupTds = await popupRow.findElements(By.css('td'));
 				const date = await popupTds[0].getText();
-				if( date != getYesterday('file')) {
+				if( date != getYesterday(1, 'file')) {
 					continue;
 				}
 				const sales = await popupTds[1].getText();
@@ -1147,7 +1183,7 @@ async function downloadaladin() {
 		await sleep(300);
 		
 		// 날짜 입력
-		const date = getYesterday('file');
+		const date = getYesterday(1, 'file');
 		await driver.executeScript(`document.querySelector('input[id="startDay"]').value = arguments[0];`, date);
 		await sleep(300)
 		await driver.executeScript(`document.querySelector('input[id="endDay"]').value = arguments[0];`, date);
@@ -1218,7 +1254,7 @@ async function downloadblice() {
 		await sleep(300);
 		
 		// 날짜 입력
-		const date = getYesterday('file');
+		const date = getYesterday(1, 'file');
 		await driver.executeScript(`document.getElementById('calculateFirstDate').value = arguments[0];`, date);
 		await sleep(300)
 		await driver.executeScript(`document.querySelector('input[name="end_dt"]').value = arguments[0];`, date);
@@ -1292,7 +1328,7 @@ async function downloadbomtoon() {
 		await sleep(300);
 		
 		// 날짜 입력
-		const date = getYesterday('file');
+		const date = getYesterday(1, 'file');
 		const targetDate = new Date(date);
 		const timestamp = targetDate.getTime() - (9 * 60 * 60 * 1000);
 		
@@ -1300,7 +1336,7 @@ async function downloadbomtoon() {
 		await calendarBtn[0].click();
 		await driver.sleep(1000); // 달력 렌더링 대기
 		const nextmonthBtn = await driver.findElement(By.css('button[aria-label^="Next month"]'));
-		const day = new Date(getToday('file')).getDate();
+		const day = new Date(getYesterday(0, 'file')).getDate();
 		if(day != 1) {
 			await nextmonthBtn.click();
 			await sleep(1000);
@@ -1428,8 +1464,61 @@ async function downloadbookcube() {
 	}
 }
 
+async function downloadmrblue() {
+	const driver = await new Builder()
+		.forBrowser('chrome')
+		.setChromeOptions(chromeOptions)
+		.build();
+
+	try {
+		console.log("미스터블루 목록 수집중...")
+
+		// 로그인 시도
+		await driver.manage().deleteAllCookies();
+		await driver.get('https://cp-manage.mrblue.com/');
+		await sleep(1000);
+
+		// 로그인 폼 입력
+		await driver.findElement(By.css('input[name="id"]')).sendKeys('biscuits')
+		await sleep(300)
+		await driver.findElement(By.css('input[name="password"]')).sendKeys('biscuits3612@!')
+		await sleep(300)
+		await driver.findElement(By.css('span.MuiButton-label')).click();
+		await sleep(2000)
+
+		// 매출 페이지로 이동
+		await driver.get('https://cp-manage.mrblue.com/calculate');
+		await sleep(2000)
+		const tabSpan = await driver.wait(until.elementLocated(	By.xpath(`//li[@slot='tab']//span[normalize-space()='작품별 정산']`)),10000);
+
+		// 클릭 가능해질 때까지 대기 후 클릭
+		await driver.wait(until.elementIsVisible(tabSpan), 10000);
+		await driver.wait(until.elementIsEnabled(tabSpan), 10000);
+		await tabSpan.click();
+		console.log('✅ 탭 이동 완료');
+
+		// 조회 버튼 클릭
+		const searchBtn = await driver.wait(until.elementLocated(By.xpath("//button[.//text()[normalize-space()='조회']]")), 10000);
+		await driver.wait(until.elementIsVisible(searchBtn), 5000);
+		await driver.executeScript("arguments[0].click();", searchBtn);
+		console.log('🔍 조회 버튼 클릭');
+		await sleep(2000);
+
+		// 엑셀 다운로드 버튼 클릭
+		const excelBtn = await driver.findElement(By.xpath("//button[contains(normalize-space(),'엑셀로 저장')]"));
+		await excelBtn.click();
+		console.log('📥 엑셀 다운로드 클릭');
+		await sleep(3000);
+    } catch (e) {
+        console.log(e);
+	} finally {
+        console.log('종료')
+		await driver.quit();
+	}
+}
+
 async function crawling(platform) {
-	const salesDate = getYesterday('file');
+	const salesDate = getYesterday(1, 'file');
 	let data = [];
 	if(platform=="series") {await downloadseries();}
 	else if(platform=="kakao") {await downloadkakao();}
@@ -1442,6 +1531,7 @@ async function crawling(platform) {
 	else if(platform=="yes24") {await downloadyes24();}
 	else if(platform=="bomtoon") {await downloadbomtoon();}
 	else if(platform=="bookcube") {await downloadbookcube();}
+	else if(platform=="mrblue") {await downloadmrblue();}
 
 	await sleep(1000);
 	if (platform !== "joara") {
@@ -1451,8 +1541,14 @@ async function crawling(platform) {
 
 	console.log(data)
 
-	for(row of data) {
-		await saveToDB(row[0], row[1], platform, row[2], row[3], row[4], salesDate);
+	if (platform == "mrblue") {
+		for(row of data) {
+			await saveToDB(row[0], row[1], platform, row[2], row[3], row[4], row[5]);
+		}
+	}else{
+		for(row of data) {
+			await saveToDB(row[0], row[1], platform, row[2], row[3], row[4], salesDate);
+		}
 	}
 }
 
@@ -1476,6 +1572,7 @@ const run = async () => {
 	await crawling("yes24");
 	await crawling("bomtoon");
 	await crawling("bookcube");
+	await crawling("mrblue")
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');
   	process.exit(0);  // 👈 Node.js 프로세스 종료
 }
