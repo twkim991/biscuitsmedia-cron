@@ -1521,18 +1521,18 @@ async function downloadmrblue() {
 async function crawling(platform) {
 	const salesDate = getYesterday(1, 'file');
 	let data = [];
-	// if(platform=="series") {await downloadseries();}
-	// else if(platform=="kakao") {await downloadkakao();}
-	// else if(platform=="ridi") {await downloadridi();}
-	// else if(platform=="kyobo") {await downloadkyobo();}
-	// else if(platform=="aladin") {await downloadaladin();}
-	// else if(platform=="joara") {data = await downloadjoara();}
-	// else if(platform=="blice") {await downloadblice();}
-	// // else if(platform=="piuri") {await downloadpiuri();};
-	// else if(platform=="yes24") {await downloadyes24();}
-	// else if(platform=="bomtoon") {await downloadbomtoon();}
-	// else if(platform=="bookcube") {await downloadbookcube();}
-	// else if(platform=="mrblue") {await downloadmrblue();}
+	if(platform=="series") {await downloadseries();}
+	else if(platform=="kakao") {await downloadkakao();}
+	else if(platform=="ridi") {await downloadridi();}
+	else if(platform=="kyobo") {await downloadkyobo();}
+	else if(platform=="aladin") {await downloadaladin();}
+	else if(platform=="joara") {data = await downloadjoara();}
+	else if(platform=="blice") {await downloadblice();}
+	// else if(platform=="piuri") {await downloadpiuri();};
+	else if(platform=="yes24") {await downloadyes24();}
+	else if(platform=="bomtoon") {await downloadbomtoon();}
+	else if(platform=="bookcube") {await downloadbookcube();}
+	else if(platform=="mrblue") {await downloadmrblue();}
 
 	await sleep(1000);
 	if (platform !== "joara") {
@@ -1563,16 +1563,16 @@ async function crawling(platform) {
 // }
 
 const run = async () => {
-	// await crawling("series");
-	// await crawling("kakao");
-	// await crawling("ridi");
-	// await crawling("kyobo");
-	// await crawling("aladin");
-	// await crawling("joara");
-	// await crawling("blice");
-	// await crawling("yes24");
-	// await crawling("bomtoon");
-	// await crawling("bookcube");
+	await crawling("series");
+	await crawling("kakao");
+	await crawling("ridi");
+	await crawling("kyobo");
+	await crawling("aladin");
+	await crawling("joara");
+	await crawling("blice");
+	await crawling("yes24");
+	await crawling("bomtoon");
+	await crawling("bookcube");
 	await crawling("mrblue")
 	console.log('✅ 모든 플랫폼 크롤링 및 저장 완료!');
   	process.exit(0);  // 👈 Node.js 프로세스 종료
